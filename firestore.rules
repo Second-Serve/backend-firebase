@@ -1,0 +1,27 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /users/{userId}/{documents=**} {
+    	allow read: if belongsTo(userId);
+      allow write: if belongsTo(userId);
+      allow update: if belongsTo(userId) && !resourceModifiesFields(['account_type', 'restaurant_id']);
+    }
+  }
+  
+  function resourceExists() {
+    return resource != null;
+  }
+  
+  function isAuthenticated() {
+  	return request.get("auth", null) != null;
+  }
+  
+  function belongsTo(userId) {
+    return resourceExists() && isAuthenticated() && request.auth.get("uid", null) == userId;
+  }
+
+  function resourceModifiesFields(fields) {
+    return resource.data.diff(resource.data).affectedKeys().hasAny(fields);
+  }
+}
