@@ -7,10 +7,16 @@ service cloud.firestore {
       allow write: if belongsTo(userId);
       allow update: if belongsTo(userId) && !resourceModifiesFields(['account_type', 'restaurant_id']);
     }
-  }
-  
-  function resourceExists() {
-    return resource != null;
+    match /restaurants/{restaurantId}/{documents=**} {
+    	// TODO: Make actual rules for these
+    	allow read: if true;
+    	allow write: if true;
+    	allow update: if true;
+      
+    	// allow read: if belongsTo(userId);
+    	// allow write: if belongsTo(userId);
+    	// allow update: if belongsTo(userId);
+    }
   }
   
   function isAuthenticated() {
@@ -18,7 +24,7 @@ service cloud.firestore {
   }
   
   function belongsTo(userId) {
-    return resourceExists() && isAuthenticated() && request.auth.get("uid", null) == userId;
+    return isAuthenticated() && request.auth.get("uid", null) == userId;
   }
 
   function resourceModifiesFields(fields) {
