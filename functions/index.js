@@ -29,15 +29,15 @@ exports.createAccount = onDocumentCreated(
 
         const campusID = data.campus_id;
 
-        // Improperly formatted campus ID
-        if (!isCampusIDProperlyFormatted(campusID)) {
-            await _deleteAccount(snapshot.id);
-        }
+        // // Improperly formatted campus ID
+        // if (!isCampusIDProperlyFormatted(campusID)) {
+        //     await _deleteAccount(snapshot.id);
+        // }
 
-        // Non-unique campus ID
-        if (!campusID || !isCampusIDUnique(campusID)) {
-            await _deleteAccount(snapshot.id);
-        }
+        // // Non-unique campus ID
+        // if (!campusID || !isCampusIDUnique(campusID)) {
+        //     await _deleteAccount(snapshot.id);
+        // }
     }
 )
 
@@ -52,11 +52,11 @@ exports.deleteAccount = onDocumentDeleted(
             return;
         }
 
-        // Delete the auth account associated with the user if it exists
-        const user = admin.auth().getUser(snapshot.id);
-        if (user) {
-            admin.auth().deleteUser(snapshot.id);
-        }
+        // // Delete the auth account associated with the user if it exists
+        // const user = admin.auth().getUser(snapshot.id);
+        // if (user) {
+        //     admin.auth().deleteUser(snapshot.id);
+        // }
     }
 )
 
@@ -69,11 +69,11 @@ exports.deleteAuthAccount = functions.auth.user().onDelete(
         const usersRef = db.collection("users");
         const query = usersRef.where("id", "==", user.uid);
 
-        query.get().then((snapshot) => {
-            snapshot.forEach((doc) => {
-                doc.ref.delete();
-            });
-        });
+        // query.get().then((snapshot) => {
+        //     snapshot.forEach((doc) => {
+        //         doc.ref.delete();
+        //     });
+        // });
     }
 )
 
@@ -93,16 +93,19 @@ exports.createRestaurant = onDocumentCreated(
         const ownerSnapshot = await data.owner.get()
         const ownerId = ownerSnapshot.id;
 
-        try {
-            const isValid = await _isAddressValid(address, restaurantSnapshot.id)
-            if (!isValid) {
-                await _deleteAccount(ownerId);
-                throw new Error("Address is not within the bounds of the University of Wisconsin-Madison.");
-            }
-        } catch (error) {
-            await _deleteAccount(ownerId);
-            throw new Error("Failed to validate the address.");
-        }
+        // Just using this to populate the location field
+        _isAddressValid(address, restaurantSnapshot.id)
+
+        // try {
+        //     const isValid = await _isAddressValid(address, restaurantSnapshot.id)
+        //     if (!isValid) {
+        //         await _deleteAccount(ownerId);
+        //         throw new Error("Address is not within the bounds of the University of Wisconsin-Madison.");
+        //     }
+        // } catch (error) {
+        //     await _deleteAccount(ownerId);
+        //     throw new Error("Failed to validate the address.");
+        // }
     }
 )
 
@@ -131,32 +134,30 @@ function isCampusIDUnique(campusID) {
 async function _deleteAccount(userId) {
     const db = getFirestore();
 
-    const snapshot = await db.collection("users").doc(userId).get()
-    const data = snapshot.data()
-
-    if (data.account_type === "business") {
-        // Find restaurant owned by user
-        const restaurantSnapshot = await db.collection("restaurants").where("owner.id", "==", userId).get()
-        restaurantSnapshot.forEach((doc) => {
-            doc.ref.delete();
-        })
-    }
-
-    // Delete user in database
-    const userDocument = db.collection("users").doc(userId);
+    const userDocument = db.collection("users").doc(userId).get();
     if (userDocument) {
-        userDocument.delete();
+        const data = snapshot.data()
+
+        // if (data.account_type === "business") {
+        //     userDocument.delete();
+    
+        //     // Find restaurant owned by user
+        //     const restaurantSnapshot = await db.collection("restaurants").where("owner.id", "==", userId).get()
+        //     restaurantSnapshot.forEach((doc) => {
+        //         doc.ref.delete();
+        //     })
+        // }
     }
 
-    // Delete user in auth
-    const auth = admin.auth();
+    // // Delete user in auth
+    // const auth = admin.auth();
 
-    auth.getUser(userId).then((user) => {
-        auth.deleteUser(userId);
-    }).catch((error) => {
-        console.log("!!!CODE!!!", error.code); // auth/user-not-found
-        // User does not exist in auth
-    });
+    // auth.getUser(userId).then((user) => {
+    //     auth.deleteUser(userId);
+    // }).catch((error) => {
+    //     console.log("!!!CODE!!!", error.code); // auth/user-not-found
+    //     // User does not exist in auth
+    // });
 }
 
 

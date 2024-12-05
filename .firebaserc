@@ -5,9 +5,7 @@
   "targets": {},
   "etags": {
     "secondserve-fd53ceff": {
-      "extensionInstances": {
-        "delete-user-data": "3ae40967cd9fdb0c83147bf2cb61e4db1fd6c4ea52e29c9aa069a8edcd6b8348"
-      }
+      "extensionInstances": {}
     }
   }
 }
