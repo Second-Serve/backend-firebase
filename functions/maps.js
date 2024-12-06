@@ -5,7 +5,7 @@ const { defineSecret } = require('firebase-functions/params');
 
 const https = require('https');
 
-const MAPS_API_KEY = defineSecret("MAPS_API_KEY");
+const MAPS_API_KEY = process.env.MAPS_API_KEY;
 
 // Bounds for the University of Wisconsin-Madison
 const BOUNDS = {
@@ -16,9 +16,8 @@ const BOUNDS = {
 };
 
 exports.geocodeAddress = functions.https.onCall(
-    { secrets: ['MAPS_API_KEY'] },
     async (request) => {
-        return this._geocodeAddress(request.data.address)
+        return _geocodeAddress(request.data.address)
     }
 );
 
@@ -28,7 +27,7 @@ async function _geocodeAddress(address) {
     }
 
     const encodedAddress = encodeURIComponent(address);
-    const url = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodedAddress}&key=${MAPS_API_KEY.value()}`;
+    const url = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodedAddress}&key=${MAPS_API_KEY}`;
 
     try {
         const data = await new Promise((resolve, reject) => {
@@ -66,9 +65,8 @@ async function _geocodeAddress(address) {
 }
 
 exports.isAddressValid = functions.https.onCall(
-    { secrets: ['MAPS_API_KEY'] },
     async (request) => {
-        return this._isAddressValid(request.data.address, request.data.restaurantId);
+        return _isAddressValid(request.address, request.restaurantId);
     }
 );
 
@@ -108,7 +106,9 @@ async function _isAddressValid(address, restaurantId = null, saveGeopoint = true
                         }, { merge: true });
                     }
 
-                    resolve(isPointWithinBounds(location.lat, location.lng, BOUNDS));
+                    resolve({
+                        isValid: isPointWithinBounds(location.lat, location.lng, BOUNDS)
+                    });
                 }).catch((error) => {
                     console.error("Error in geocoding:", error);
                     reject(new Error("Failed to geocode the address."));
@@ -118,6 +118,68 @@ async function _isAddressValid(address, restaurantId = null, saveGeopoint = true
     });
     return data;
 }
+
+exports.distanceToRestaurant = functions.https.onRequest(
+    async (request, response) => {
+        const data = await new Promise(async (resolve, reject) => {
+            const restaurantId = request.restaurantId;
+            const startingPoint = request.startingPoint;
+
+            // Get address of restaurant from database
+            const db = getFirestore();
+            const restaurantDoc = await db.collection("restaurants")
+                .doc(restaurantId)
+                .get();
+
+            if (!restaurantDoc.exists) {
+                reject(new Error(`Restaurant with id ${restaurantId} does not exist.`));
+                return;
+            }
+
+            const restaurant = restaurantDoc.data()
+            const address = restaurant.address;
+
+            if (!address) {
+                reject(new Error(`Restaurant with id ${restaurantId} doesn't have an address.`));
+                return;
+            }
+
+            const encodedAddress = encodeURIComponent(address);
+            const encodedStartingPoint = encodeURIComponent(`${startingPoint.longitude},${startingPoint.latitude}`);
+
+            const url = `https://maps.googleapis.com/maps/api/distancematrix/json
+                ?destinations=${encodedAddress}
+                &origins=${encodedStartingPoint}
+                &key=${MAPS_API_KEY}`;
+
+            https.get(url, (httpResponse) => {
+                let data = '';
+
+                httpResponse.on('data', (chunk) => {
+                    data += chunk;
+                });
+
+                httpResponse.on('end', () => {
+                    try {
+                        const results = JSON.parse(data).results;
+                        if (results.length === 0) {
+                            reject(new Error("No results found."));
+                        } else {
+                            resolve(results[0]); // Resolve with the first result
+                        }
+                    } catch (error) {
+                        reject(new Error("Failed to parse the geocoding response."));
+                    }
+                });
+
+                httpResponse.on('error', (error) => {
+                    reject(new Error("HTTP request failed: " + error.message));
+                });
+            });
+        });
+        return data;
+    }
+)
 
 function isPointWithinBounds(x, y, bounds) {
     return x >= bounds.lat1 && x <= bounds.lat2 && y >= bounds.long1 && y <= bounds.long2;
