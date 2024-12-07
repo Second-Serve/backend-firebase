@@ -35,7 +35,7 @@ async function getRestaurantById(restaurantId: string): Promise<DocumentData> {
     return restaurantData;
 }
 
-exports.geocodeAddress = functions.https.onCall(
+export const geocodeAddress = functions.https.onCall(
     async (request: { data: GeocodeAddressOptions }) => {
         return await _geocodeAddress(request.data.address)
     }
@@ -97,7 +97,7 @@ interface IsAddressValidResponse {
     reason?: string
 }
 
-exports.isAddressValid = functions.https.onCall(
+export const isAddressValid = functions.https.onCall(
     async (request: { data: IsAddressValidOptions }) => {
         return _isAddressValid(request.data.address);
     }
@@ -147,7 +147,7 @@ interface DistanceToRestaurantResponse {
 
 }
 
-exports.distanceToRestaurant = functions.https.onCall(
+export const distanceToRestaurant = functions.https.onCall(
     { secrets: ["MAPS_API_KEY"] },
     async (request) => {
         const { restaurantId, startingPoint } = request.data as DistanceToRestaurantOptions;

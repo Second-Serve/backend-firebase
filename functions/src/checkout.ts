@@ -1,8 +1,7 @@
-const functions = require('firebase-functions/v1');
-const admin = require('firebase-admin');
-const { getFirestore } = require('firebase-admin/firestore');
+import * as functions from 'firebase-functions/v1';
+import { getFirestore } from 'firebase-admin/firestore';
 
-exports.placeOrder = functions.https.onCall(
+export const placeOrder = functions.https.onCall(
     async (request, response) => {
         const data = await new Promise((resolve, reject) => {
             const db = getFirestore();
