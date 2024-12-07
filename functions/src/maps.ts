@@ -1,5 +1,5 @@
 import * as functions from 'firebase-functions/v2';
-import { getFirestore, GeoPoint } from 'firebase-admin/firestore';
+import { getFirestore, GeoPoint, DocumentData } from 'firebase-admin/firestore';
 import { defineSecret } from 'firebase-functions/params';
 import * as https from 'https';
 import { default as axios } from 'axios';
@@ -16,6 +16,23 @@ const MADISON_CAMPUS_BOUNDS = {
 
 interface GeocodeAddressOptions {
     address: string
+}
+
+async function getRestaurantById(restaurantId: string): Promise<DocumentData> {
+    const db = getFirestore();
+    const restaurantDoc = await db.collection("restaurants")
+        .doc(restaurantId)
+        .get();
+
+    if (!restaurantDoc.exists) {
+        throw new Error(`Restaurant with id ${restaurantId} does not exist.`);
+    }
+
+    const restaurantData = restaurantDoc.data();
+    if (!restaurantData) {
+        throw new Error(`Restaurant with id ${restaurantId} does not have data.`);
+    }
+    return restaurantData;
 }
 
 exports.geocodeAddress = functions.https.onCall(
@@ -89,8 +106,6 @@ exports.isAddressValid = functions.https.onCall(
 /**
  * Get whether the address is within the bounds of the University of Wisconsin-Madison.
  * @param {string}  address      The address to check.
- * @param {?string} restaurantId The restaurant this address is associated with. Makes check use saved geopoint if it exists.
- * @param {boolean} saveGeopoint Whether to save the geopoint if the address is valid.
  */
 async function _isAddressValid(address: string) {
     const data = await new Promise(async (resolve, reject) => {
@@ -148,17 +163,7 @@ async function _distanceToRestaurant(
     restaurantId: string,
     startingPoint: GeoPoint
 ): Promise<DistanceToRestaurantResponse> {
-    // Get address of restaurant from database
-    const db = getFirestore();
-    const restaurantDoc = await db.collection("restaurants")
-        .doc(restaurantId)
-        .get();
-
-    if (!restaurantDoc.exists) {
-        throw new Error(`Restaurant with id ${restaurantId} does not exist.`);
-    }
-
-    const restaurant = restaurantDoc.data()
+    const restaurant = await getRestaurantById(restaurantId);
     const address = restaurant?.address;
 
     if (!address) {
@@ -204,3 +209,52 @@ function isPointWithinBounds(point: GeoPoint, bounds: LatLongBounds) {
         && point.longitude >= bounds.long1
         && point.longitude <= bounds.long2;
 }
+
+interface GetRestaurantMapImageOptions {
+    restaurantId: string,
+    type: MapImageType
+}
+
+enum MapImageType {
+    BANNER = "banner",
+    ICON = "icon"
+}
+
+interface ImageSize {
+    x: Number,
+    y: Number
+}
+
+exports.getRestaurantMapImage = functions.https.onCall(
+    { secrets: ["MAPS_API_KEY"] },
+    async (request) => {
+        const { restaurantId, type } = request.data as GetRestaurantMapImageOptions;
+
+        const restaurant = await getRestaurantById(restaurantId);
+        const center = encodeURIComponent(restaurant.address);
+
+        let zoom: Number
+        let size: ImageSize
+        if (type == MapImageType.BANNER) {
+            zoom = 20;
+            size = { x: 500, y: 250 };
+        } else {
+            zoom = 20;
+            size = { x: 128, y: 128 };
+        }
+
+        const url = "https://maps.googleapis.com/maps/api/staticmap"
+            + `?center=${center}`
+            + `?zoom=${zoom}`
+            + `?size=${size}`
+            + "?type=jpeg";
+
+        try {
+            const response = await axios.get(url);
+            const result = response.data;
+            console.log(result);
+        } catch {
+            // TODO
+        }
+    }
+)
