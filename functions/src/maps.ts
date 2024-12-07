@@ -225,16 +225,19 @@ interface ImageSize {
     y: Number
 }
 
-exports.getRestaurantMapImage = functions.https.onCall(
+export const getRestaurantMapImage = functions.https.onCall(
     { secrets: ["MAPS_API_KEY"] },
-    async (request) => {
+    async (request, response) => {
         const { restaurantId, type } = request.data as GetRestaurantMapImageOptions;
 
         const restaurant = await getRestaurantById(restaurantId);
-        const center = encodeURIComponent(restaurant.address);
 
-        let zoom: Number
-        let size: ImageSize
+        // A little hacky, but necessary to ensure the right address is used
+        const madisonAddress = restaurant.address + " Madison, WI";
+        const center = encodeURIComponent(madisonAddress);
+
+        let zoom: Number;
+        let size: ImageSize;
         if (type == MapImageType.BANNER) {
             zoom = 20;
             size = { x: 500, y: 250 };
@@ -245,16 +248,15 @@ exports.getRestaurantMapImage = functions.https.onCall(
 
         const url = "https://maps.googleapis.com/maps/api/staticmap"
             + `?center=${center}`
-            + `?zoom=${zoom}`
-            + `?size=${size}`
-            + "?type=jpeg";
+            + `&zoom=${zoom}`
+            + `&size=${size.x}x${size.y}`
+            + "&type=jpeg"
+            + `&key=${MAPS_API_KEY.value()}`;
+        console.log(url);
 
-        try {
-            const response = await axios.get(url);
-            const result = response.data;
-            console.log(result);
-        } catch {
-            // TODO
-        }
+        const apiResponse = await axios.get(url, {});
+        return {
+            "image": apiResponse.data
+        };
     }
 )

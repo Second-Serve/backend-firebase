@@ -13,6 +13,7 @@ import * as maps from './maps'
 exports.isAddressValid = maps.isAddressValid;
 exports.geocodeAddress = maps.geocodeAddress;
 exports.distanceToRestaurant = maps.distanceToRestaurant
+exports.getRestaurantMapImage = maps.getRestaurantMapImage
 
 import * as checkout from './checkout'
 exports.placeOrder = checkout.placeOrder;
