@@ -1,6 +1,6 @@
-// const functions = require('firebase-functions/v1');
-// const admin = require('firebase-admin');
-// const { getFirestore } = require('firebase-admin/firestore');
+const functions = require('firebase-functions/v1');
+const admin = require('firebase-admin');
+const { getFirestore } = require('firebase-admin/firestore');
 const { onRequest } = require('firebase-functions/v2/https');
 const {
     onDocumentCreated,

@@ -1,6 +1,6 @@
-// const functions = require('firebase-functions/v1');
-// const admin = require('firebase-admin');
-// const { getFirestore } = require('firebase-admin/firestore');
+const functions = require('firebase-functions/v1');
+const admin = require('firebase-admin');
+const { getFirestore } = require('firebase-admin/firestore');
 
 exports.placeOrder = functions.https.onCall(
     async (request, response) => {
