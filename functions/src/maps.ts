@@ -255,8 +255,10 @@ export const getRestaurantMapImage = functions.https.onCall(
         console.log(url);
 
         const apiResponse = await axios.get(url, {});
+
+        const imageDataBase64 = Buffer.from(apiResponse.data).toString("base64");
         return {
-            "image": apiResponse.data
+            "image": imageDataBase64
         };
     }
 )
