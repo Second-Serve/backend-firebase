@@ -1,6 +1,6 @@
 import * as functions from 'firebase-functions/v1';
-import { getFirestore, Timestamp } from 'firebase-admin/firestore';
-import { getRestaurantById } from './util';
+import { AggregateField, getFirestore, Timestamp } from 'firebase-admin/firestore';
+import { getRestaurantById, getUserById } from './util';
 
 interface OrderItem {
     restaurantId: string
@@ -26,6 +26,7 @@ export const placeOrder = functions.https.onCall(
             const orderItemsData = order.items;
 
             const items = [];
+            const now = Timestamp.now();
             let totalPrice = 0;
             for (const item of orderItemsData) {
                 const restaurant = await getRestaurantById(item.restaurantId);
@@ -33,7 +34,8 @@ export const placeOrder = functions.https.onCall(
                 const itemJson = {
                     restaurant: db.doc(`restaurants/${item.restaurantId}`),
                     quantity: item.quantity,
-                    price: price
+                    price: price,
+                    createdAt: now // Field duplication, but it makes some queries significantly faster
                 }
                 items.push(itemJson);
                 totalPrice += price;
@@ -42,12 +44,14 @@ export const placeOrder = functions.https.onCall(
             const orderDocument = db.collection('orders').doc();
             orderDocument.set({
                 for: db.doc(`users/${userId}`),
-                items: items,
                 totalPrice: totalPrice,
-                createdAt: Timestamp.fromMillis(Date.now())
+                createdAt: now,
+                fulfilled: false
             });
+            orderDocument.collection("items").add(items)
             resolve({ success: true });
         });
         return responseData;
     }
 );
+
