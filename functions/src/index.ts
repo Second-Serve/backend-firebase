@@ -8,6 +8,7 @@ exports.deleteAccount = accounts.deleteAccount;
 exports.deleteAuthAccount = accounts.deleteAuthAccount;
 exports.createRestaurant = accounts.createRestaurant;
 exports.verifyCampusID = accounts.verifyCampusID;
+exports.updateRestaurantInformation = accounts.updateRestaurantInformation;
 
 import * as maps from './maps'
 exports.isAddressValid = maps.isAddressValid;

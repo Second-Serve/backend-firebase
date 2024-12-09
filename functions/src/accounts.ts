@@ -2,6 +2,9 @@ import * as functions from 'firebase-functions/v1';
 // import * as admin from 'firebase-admin';
 // import { getFirestore } from 'firebase-admin/firestore';
 import { onRequest } from 'firebase-functions/v2/https';
+import { getFirestore } from 'firebase-admin/firestore';
+import { RestaurantData, validateRestaurantData } from './validation/restaurants';
+import { getUserById } from './util';
 import {
     onDocumentCreated,
     onDocumentDeleted
@@ -120,3 +123,64 @@ function isCampusIDProperlyFormatted(campusID: string) {
 //         return snapshot.empty;
 //     });
 // }
+
+export const updateRestaurantInformation = functions.https.onCall(
+    async (data, context) => {
+        const userId = context.auth?.uid;
+        if (!userId) {
+            return {
+                success: false,
+                reason: "User is not authenticated."
+            }
+        }
+
+        const user = await getUserById(userId);
+
+        if (user.account_type != "business") {
+            return {
+                success: false,
+                reason: `User with id ${userId} is not a business account.`
+            }
+        }
+
+        const db = getFirestore();
+        const userReference = db.collection("users").doc(userId);
+        const restaurantDocs = await db.collection("restaurants")
+            .where("owner", "==", userReference)
+            .get();
+
+        if (restaurantDocs.empty) {
+            return {
+                success: false,
+                reason: `User with id ${userId} does not have an associated restaurant.`
+            }
+        }
+
+        const restaurant = restaurantDocs.docs[0];
+
+        const updatedRestaurantData = data as RestaurantData;
+
+        // Is the updated restaurant data valid?
+        const restaurantDataValidationResult = validateRestaurantData(updatedRestaurantData);
+        if (!restaurantDataValidationResult.isValid()) {
+            console.log(`Restaurant data failed validation:`);
+            const reasons = restaurantDataValidationResult.validationFailureReasons;
+            for (const reason of reasons) {
+                console.log(`- ${reason}`);
+            }
+
+            return {
+                success: false,
+                reason: reasons[0] // Just return the first reason
+            }
+        }
+
+        // Updated data is valid, so let's update the document
+        const restaurantReference = db.collection("restaurants").doc(restaurant.id);
+        await restaurantReference.set(updatedRestaurantData, { merge: true });
+
+        return {
+            success: true
+        }
+    }
+)
