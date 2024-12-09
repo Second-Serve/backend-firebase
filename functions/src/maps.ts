@@ -1,8 +1,9 @@
 import * as functions from 'firebase-functions/v2';
-import { getFirestore, GeoPoint, DocumentData } from 'firebase-admin/firestore';
+import { GeoPoint } from 'firebase-admin/firestore';
 import { defineSecret } from 'firebase-functions/params';
 import * as https from 'https';
 import { default as axios } from 'axios';
+import { getRestaurantById } from './util';
 
 const MAPS_API_KEY = defineSecret("MAPS_API_KEY");
 
@@ -16,23 +17,6 @@ const MADISON_CAMPUS_BOUNDS = {
 
 interface GeocodeAddressOptions {
     address: string
-}
-
-async function getRestaurantById(restaurantId: string): Promise<DocumentData> {
-    const db = getFirestore();
-    const restaurantDoc = await db.collection("restaurants")
-        .doc(restaurantId)
-        .get();
-
-    if (!restaurantDoc.exists) {
-        throw new Error(`Restaurant with id ${restaurantId} does not exist.`);
-    }
-
-    const restaurantData = restaurantDoc.data();
-    if (!restaurantData) {
-        throw new Error(`Restaurant with id ${restaurantId} does not have data.`);
-    }
-    return restaurantData;
 }
 
 export const geocodeAddress = functions.https.onCall(
@@ -250,7 +234,6 @@ export const getRestaurantMapImage = functions.https.onCall(
             + `?center=${center}`
             + `&zoom=${zoom}`
             + `&size=${size.x}x${size.y}`
-            + "&type=jpeg"
             + `&key=${MAPS_API_KEY.value()}`;
         console.log(url);
 
