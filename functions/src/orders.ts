@@ -48,7 +48,15 @@ export const placeOrder = functions.https.onCall(
                 createdAt: now,
                 fulfilled: false
             });
-            orderDocument.collection("items").add(items)
+
+            // Add order item documents to subcollection
+            const batch = db.batch();
+            const itemsRef = orderDocument.collection('items');
+            for (const item of items) {
+                batch.set(itemsRef.doc(), item);
+            }
+            await batch.commit();
+
             resolve({ success: true });
         });
         return responseData;
@@ -87,7 +95,8 @@ export const getRestaurantDashboardInformation = functions.https.onCall(
             }
         }
 
-        const restaurantDoc = restaurantDocs.docs[0];
+        const restaurant = restaurantDocs.docs[0];
+        const restaurantDoc = db.collection("restaurants").doc(restaurant.id)
 
         const itemsQuery = db.collectionGroup("items")
             .where("restaurant", "==", restaurantDoc)
@@ -109,12 +118,13 @@ export const getRestaurantDashboardInformation = functions.https.onCall(
         })
         const allTimeDataSnapshot = await totalDataQuery.get();
 
-        return {
+        const result = {
             success: true,
             ordersLast24Hours: dataLast24HoursSnapshot.data().ordersLast24Hours,
             earningsLast24Hours: dataLast24HoursSnapshot.data().earningsLast24Hours,
             ordersAllTime: allTimeDataSnapshot.data().ordersAllTime,
             earningsAllTime: allTimeDataSnapshot.data().earningsAllTime
         }
+        return result;
     }
 )
