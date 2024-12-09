@@ -18,3 +18,4 @@ exports.getRestaurantMapImage = maps.getRestaurantMapImage
 
 import * as orders from './orders'
 exports.placeOrder = orders.placeOrder;
+exports.getRestaurantDashboardInformation = orders.getRestaurantDashboardInformation

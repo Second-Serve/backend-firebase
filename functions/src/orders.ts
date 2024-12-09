@@ -55,3 +55,66 @@ export const placeOrder = functions.https.onCall(
     }
 );
 
+export const getRestaurantDashboardInformation = functions.https.onCall(
+    async (data, context) => {
+        const userId = context.auth?.uid;
+        if (!userId) {
+            return {
+                success: false,
+                reason: "User is not authenticated."
+            }
+        }
+
+        const user = await getUserById(userId);
+
+        if (user.account_type != "business") {
+            return {
+                success: false,
+                reason: `User with id ${userId} is not a business account.`
+            }
+        }
+
+        const db = getFirestore();
+        const userDoc = db.collection("users").doc(userId);
+
+        const restaurantDocs = await db.collection("restaurants")
+            .where("owner", "==", userDoc)
+            .get();
+        if (restaurantDocs.size == 0) {
+            return {
+                success: false,
+                reason: `User with id ${userId} does not have an associated restaurant.`
+            }
+        }
+
+        const restaurantDoc = restaurantDocs.docs[0];
+
+        const itemsQuery = db.collectionGroup("items")
+            .where("restaurant", "==", restaurantDoc)
+        
+        const now = Timestamp.now();
+        const oneDayAgo = new Timestamp(now.seconds - 86400, now.nanoseconds); // 86400 seconds = 24 hours
+        const itemsLast24HoursQuery = itemsQuery
+            .where("createdAt", ">=", oneDayAgo)
+
+        const dataLast24HoursQuery = itemsLast24HoursQuery.aggregate({
+            ordersLast24Hours: AggregateField.count(),
+            earningsLast24Hours: AggregateField.sum("price")
+        });
+        const dataLast24HoursSnapshot = await dataLast24HoursQuery.get();
+
+        const totalDataQuery = itemsQuery.aggregate({
+            ordersAllTime: AggregateField.count(),
+            earningsAllTime: AggregateField.sum("price")
+        })
+        const allTimeDataSnapshot = await totalDataQuery.get();
+
+        return {
+            success: true,
+            ordersLast24Hours: dataLast24HoursSnapshot.data().ordersLast24Hours,
+            earningsLast24Hours: dataLast24HoursSnapshot.data().earningsLast24Hours,
+            ordersAllTime: allTimeDataSnapshot.data().ordersAllTime,
+            earningsAllTime: allTimeDataSnapshot.data().earningsAllTime
+        }
+    }
+)
