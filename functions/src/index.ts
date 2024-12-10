@@ -1,6 +1,8 @@
 import { initializeApp } from 'firebase-admin/app';
 
-initializeApp();
+initializeApp({
+    storageBucket: "secondserve-fd53ceff.firebasestorage.app"
+});
 
 import * as accounts from './accounts';
 exports.createAccount = accounts.createAccount;

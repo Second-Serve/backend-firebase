@@ -1,9 +1,11 @@
 import * as functions from 'firebase-functions/v2';
 import { GeoPoint } from 'firebase-admin/firestore';
+import { getStorage } from 'firebase-admin/storage';
 import { defineSecret } from 'firebase-functions/params';
 import * as https from 'https';
 import { default as axios } from 'axios';
 import { getRestaurantById } from './util';
+import { bucket } from 'firebase-functions/v1/storage';
 
 const MAPS_API_KEY = defineSecret("MAPS_API_KEY");
 
@@ -220,28 +222,67 @@ export const getRestaurantMapImage = functions.https.onCall(
         const madisonAddress = restaurant.address + " Madison, WI";
         const center = encodeURIComponent(madisonAddress);
 
+        const typeLowerCase = type.toLowerCase();
+
+        const folderName = typeLowerCase;
+        const fileName = `${restaurantId}.jpg`;
+        const filePath = `images/maps/${folderName}/${fileName}`;
+        const bucket = getStorage().bucket();
+        const file = bucket.file(filePath);
+
+        // If the file already exists, use that
+        const fileExists = await file.exists();
+        if (fileExists[0]) {
+            return {
+                "image": file.publicUrl()
+            }
+        }
+
         let zoom: Number;
         let size: ImageSize;
-        if (type == MapImageType.BANNER) {
+        if (typeLowerCase == MapImageType.BANNER) {
             zoom = 20;
             size = { x: 500, y: 250 };
-        } else {
+        } else if (typeLowerCase == MapImageType.ICON) {
             zoom = 20;
             size = { x: 128, y: 128 };
+        } else {
+            return {
+                success: false,
+                reason: `Unknown map image type: ${type}`
+            };
         }
 
         const url = "https://maps.googleapis.com/maps/api/staticmap"
             + `?center=${center}`
             + `&zoom=${zoom}`
             + `&size=${size.x}x${size.y}`
+            + "&format=jpg"
             + `&key=${MAPS_API_KEY.value()}`;
         console.log(url);
 
-        const apiResponse = await axios.get(url, {});
+        const apiResponse = await axios.get(url, {
+            responseType: "arraybuffer"
+        });
 
-        const imageDataBase64 = Buffer.from(apiResponse.data).toString("base64");
+        const buffer = apiResponse.data;
+        await file.save(buffer);
+
+        // // Annoyingly, we can't do these two in parallel
+        await file.makePublic();
+        await file.setMetadata({
+            contentType: "image/jpeg",
+            cacheControl: "public, max-age=86400"
+        })
+
+        console.log(file.publicUrl());
+
         return {
-            "image": imageDataBase64
+            "image": file.publicUrl()
         };
     }
 )
+
+function toFilenameFriendlyString(unsanitizedString: string) {
+    return unsanitizedString.replace(/[^a-z0-9]/gi, '_').toLowerCase();
+}
