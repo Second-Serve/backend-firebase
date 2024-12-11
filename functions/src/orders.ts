@@ -29,6 +29,13 @@ export const placeOrder = functions.https.onCall(
             const now = Timestamp.now();
             let totalPrice = 0;
             for (const item of orderItemsData) {
+                // Update the bag claimed count
+                const restaurantDoc = db.doc(`restaurants/${item.restaurantId}`);
+                restaurantDoc.update({
+                    bags_claimed: FieldValue.increment(item.quantity)
+                });
+
+                // Add order item document to database
                 const restaurant = await getRestaurantById(item.restaurantId);
                 const price = restaurant.bag_price * item.quantity;
                 const itemJson = {
