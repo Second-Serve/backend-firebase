@@ -5,7 +5,6 @@ import { defineSecret } from 'firebase-functions/params';
 import * as https from 'https';
 import { default as axios } from 'axios';
 import { getRestaurantById } from './util';
-import { bucket } from 'firebase-functions/v1/storage';
 
 const MAPS_API_KEY = defineSecret("MAPS_API_KEY");
 
@@ -282,7 +281,3 @@ export const getRestaurantMapImage = functions.https.onCall(
         };
     }
 )
-
-function toFilenameFriendlyString(unsanitizedString: string) {
-    return unsanitizedString.replace(/[^a-z0-9]/gi, '_').toLowerCase();
-}
