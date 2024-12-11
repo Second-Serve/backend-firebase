@@ -1,5 +1,5 @@
 import * as functions from 'firebase-functions/v1';
-import { AggregateField, getFirestore, Timestamp } from 'firebase-admin/firestore';
+import { AggregateField, FieldValue, getFirestore, Timestamp } from 'firebase-admin/firestore';
 import { getRestaurantById, getUserById } from './util';
 
 interface OrderItem {
@@ -11,6 +11,22 @@ interface OrderToPlace {
     for: string // User ID
     items: OrderItem[]
 }
+
+export const getOrders = functions.https.onCall(
+    async (data, context) => {
+        const userId = context.auth?.uid
+        if (!userId) {
+            throw new Error("User is not authenticated.");
+        }
+
+        const db = getFirestore();
+        const getOrdersForUserQuery = db.collection("orders")
+            .where("for", "==", db.doc(`users/${userId}`));
+        const orders = await getOrdersForUserQuery.get();
+
+        return orders.docs;
+    }
+)
 
 export const placeOrder = functions.https.onCall(
     async (data, context) => {
@@ -69,6 +85,36 @@ export const placeOrder = functions.https.onCall(
         return responseData;
     }
 );
+
+export const confirmOrderItem = functions.https.onCall(
+    async (data, context) => {
+        const userId = context.auth?.uid;
+        if (!userId) {
+            throw new Error("User is not authenticated.");
+        }
+
+        const db = getFirestore();
+        const getUnfulfilledOrderItemQuery = db.collectionGroup("items")
+            .where("uid", "==", data.itemId)
+            .where("fulfilled", "==", false);
+
+        const orderItems = await getUnfulfilledOrderItemQuery.get();
+        
+        if (orderItems.size == 0) {
+            throw new Error("Could not find order item with id");
+        }
+
+        const orderItem = orderItems.docs[0];
+
+        const userRef = db.doc(`users/${userId}`);
+        if (orderItem.data().for != userRef)
+
+        // Mark order item as fulfilled
+        orderItem.ref.update({
+            fulfilled: true
+        }, { exists: true })
+    }
+)
 
 export const getRestaurantDashboardInformation = functions.https.onCall(
     async (data, context) => {

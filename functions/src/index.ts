@@ -19,5 +19,7 @@ exports.distanceToRestaurant = maps.distanceToRestaurant
 exports.getRestaurantMapImage = maps.getRestaurantMapImage
 
 import * as orders from './orders'
+exports.getOrders = orders.getOrders;
 exports.placeOrder = orders.placeOrder;
+exports.confirmOrderItem = orders.confirmOrderItem;
 exports.getRestaurantDashboardInformation = orders.getRestaurantDashboardInformation
